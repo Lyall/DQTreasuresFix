@@ -6,6 +6,7 @@
 #include "SDK/W_MainMenu_Root_classes.hpp"
 #include "SDK/W_MainMenu_classes.hpp"
 #include "SDK/W_Sub_01_classes.hpp"
+#include "SDK/W_Sub_02_classes.hpp"
 
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/basic_file_sink.h>
@@ -417,29 +418,38 @@ void HUD()
                             }
 
                             // Span cutscene letterboxing
-                            if (obj->GetName().contains("W_Sub_01_C")) {
-                                auto letterbox = (SDK::UW_Sub_01_C*)obj;
-                                auto topSlot = (SDK::UCanvasPanelSlot*)letterbox->Mask_Top->Slot;
-                                auto bottomSlot = (SDK::UCanvasPanelSlot*)letterbox->Mask_Bottom->Slot;
+                            if (obj->GetName().contains("W_Sub_01_C") || obj->GetName().contains("W_Sub_02_C")) {
+                                SDK::UCanvasPanelSlot* topSlot = nullptr;
+                                SDK::UCanvasPanelSlot* bottomSlot = nullptr;
 
-                                if (fAspectRatio > fNativeAspect) {
-                                    float width = 1080.00f * fAspectRatio;
-
-                                    topSlot->SetOffsets(SDK::FMargin(0.00f, 0.00f, width, 130.00f));
-                                    topSlot->SetAnchors(SDK::FAnchors((SDK::FVector2D)(0.00f, 0.00f), (SDK::FVector2D)(1.00f, 0.00f)));
-                                    bottomSlot->SetOffsets(SDK::FMargin(0.00f, 1080.00f, width, -130.00f));
-                                    bottomSlot->SetAnchors(SDK::FAnchors((SDK::FVector2D)(0.00f, 0.00f), (SDK::FVector2D)(1.00f, 0.00f)));
-                                    
+                                if (obj->GetName().contains("W_Sub_01_C")) {
+                                    topSlot = (SDK::UCanvasPanelSlot*)static_cast<SDK::UW_Sub_01_C*>(obj)->Mask_Top->Slot;
+                                    bottomSlot = (SDK::UCanvasPanelSlot*)static_cast<SDK::UW_Sub_01_C*>(obj)->Mask_Bottom->Slot;
                                 }
-                                else if (fAspectRatio < fNativeAspect) {
-                                    float height = 1920.00f / fAspectRatio;
-
-                                    topSlot->SetOffsets(SDK::FMargin(0.00f, 0.00f, 1920.00f, 130.00f));
-                                    topSlot->SetAnchors(SDK::FAnchors((SDK::FVector2D)(0.00f, 0.00f), (SDK::FVector2D)(1.00f, 0.00f)));
-                                    bottomSlot->SetOffsets(SDK::FMargin(0.00f, height, 1920.00f, -130.00f));
-                                    bottomSlot->SetAnchors(SDK::FAnchors((SDK::FVector2D)(1.00f, 1.00f), (SDK::FVector2D)(1.00f, 1.00f)));  
+                                else if (obj->GetName().contains("W_Sub_02_C")) {
+                                    topSlot = (SDK::UCanvasPanelSlot*)static_cast<SDK::UW_Sub_02_C*>(obj)->Mask_Top->Slot;
+                                    bottomSlot = (SDK::UCanvasPanelSlot*)static_cast<SDK::UW_Sub_02_C*>(obj)->Mask_Bottom->Slot;
                                 }
 
+                                if (topSlot && bottomSlot) {
+                                    if (fAspectRatio > fNativeAspect) {
+                                        float width = 1080.00f * fAspectRatio;
+
+                                        topSlot->SetOffsets(SDK::FMargin(0.00f, 0.00f, width, 130.00f));
+                                        topSlot->SetAnchors(SDK::FAnchors((SDK::FVector2D)(0.00f, 0.00f), (SDK::FVector2D)(1.00f, 0.00f)));
+                                        bottomSlot->SetOffsets(SDK::FMargin(0.00f, 1080.00f, width, -130.00f));
+                                        bottomSlot->SetAnchors(SDK::FAnchors((SDK::FVector2D)(0.00f, 0.00f), (SDK::FVector2D)(1.00f, 0.00f)));
+
+                                    }
+                                    else if (fAspectRatio < fNativeAspect) {
+                                        float height = 1920.00f / fAspectRatio;
+
+                                        topSlot->SetOffsets(SDK::FMargin(0.00f, 0.00f, 1920.00f, 130.00f));
+                                        topSlot->SetAnchors(SDK::FAnchors((SDK::FVector2D)(0.00f, 0.00f), (SDK::FVector2D)(1.00f, 0.00f)));
+                                        bottomSlot->SetOffsets(SDK::FMargin(0.00f, height, 1920.00f, -130.00f));
+                                        bottomSlot->SetAnchors(SDK::FAnchors((SDK::FVector2D)(1.00f, 1.00f), (SDK::FVector2D)(1.00f, 1.00f)));
+                                    }
+                                }
                                 // Don't centre this
                                 return;
                             }
