@@ -439,7 +439,6 @@ void HUD()
                                         topSlot->SetAnchors(SDK::FAnchors((SDK::FVector2D)(0.00f, 0.00f), (SDK::FVector2D)(1.00f, 0.00f)));
                                         bottomSlot->SetOffsets(SDK::FMargin(0.00f, 1080.00f, width, -130.00f));
                                         bottomSlot->SetAnchors(SDK::FAnchors((SDK::FVector2D)(0.00f, 0.00f), (SDK::FVector2D)(1.00f, 0.00f)));
-
                                     }
                                     else if (fAspectRatio < fNativeAspect) {
                                         float height = 1920.00f / fAspectRatio;
@@ -447,7 +446,7 @@ void HUD()
                                         topSlot->SetOffsets(SDK::FMargin(0.00f, 0.00f, 1920.00f, 130.00f));
                                         topSlot->SetAnchors(SDK::FAnchors((SDK::FVector2D)(0.00f, 0.00f), (SDK::FVector2D)(1.00f, 0.00f)));
                                         bottomSlot->SetOffsets(SDK::FMargin(0.00f, height, 1920.00f, -130.00f));
-                                        bottomSlot->SetAnchors(SDK::FAnchors((SDK::FVector2D)(1.00f, 1.00f), (SDK::FVector2D)(1.00f, 1.00f)));
+                                        bottomSlot->SetAnchors(SDK::FAnchors((SDK::FVector2D)(0.00f, 0.00f), (SDK::FVector2D)(1.00f, 0.00f)));
                                     }
                                 }
                                 // Don't centre this
