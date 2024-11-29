@@ -5,7 +5,7 @@
 #include "SDK/UMG_classes.hpp"
 #include "SDK/W_MainMenu_Root_classes.hpp"
 #include "SDK/W_MainMenu_classes.hpp"
-#include "SDK/W_Brightness_classes.hpp"
+#include "SDK/W_Sub_01_classes.hpp"
 
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/basic_file_sink.h>
@@ -417,37 +417,29 @@ void HUD()
                             }
 
                             // Span cutscene letterboxing
-                            if (obj->GetName().contains("W_Brightness_C")) {
-                                auto letterbox = (SDK::UW_Brightness_C*)obj;
-
-                                auto imageSlot = (SDK::UCanvasPanelSlot*)letterbox->Image->Slot;
-                                auto imageOffsets = imageSlot->GetOffsets();
-
-                                auto imageBrightnessSlot = (SDK::UCanvasPanelSlot*)letterbox->Image_brightness->Slot;
-                                auto imageBrightnessOffsets = imageBrightnessSlot->GetOffsets();
+                            if (obj->GetName().contains("W_Sub_01_C")) {
+                                auto letterbox = (SDK::UW_Sub_01_C*)obj;
+                                auto topSlot = (SDK::UCanvasPanelSlot*)letterbox->Mask_Top->Slot;
+                                auto bottomSlot = (SDK::UCanvasPanelSlot*)letterbox->Mask_Bottom->Slot;
 
                                 if (fAspectRatio > fNativeAspect) {
                                     float width = 1080.00f * fAspectRatio;
-                                    if (imageOffsets.Right != width) {
-                                        imageOffsets.Right = width;
-                                        imageSlot->SetOffsets(imageOffsets);
-                                    }
-                                    if (imageBrightnessOffsets.Right != width) {
-                                        imageBrightnessOffsets.Right = width;
-                                        imageBrightnessSlot->SetOffsets(imageBrightnessOffsets);
-                                    }
+
+                                    topSlot->SetOffsets(SDK::FMargin(0.00f, 0.00f, width, 130.00f));
+                                    topSlot->SetAnchors(SDK::FAnchors((SDK::FVector2D)(0.00f, 0.00f), (SDK::FVector2D)(1.00f, 0.00f)));
+                                    bottomSlot->SetOffsets(SDK::FMargin(0.00f, 1080.00f, width, -130.00f));
+                                    bottomSlot->SetAnchors(SDK::FAnchors((SDK::FVector2D)(0.00f, 0.00f), (SDK::FVector2D)(1.00f, 0.00f)));
+                                    
                                 }
                                 else if (fAspectRatio < fNativeAspect) {
                                     float height = 1920.00f / fAspectRatio;
-                                    if (imageOffsets.Bottom != height) {
-                                        imageOffsets.Bottom = height;
-                                        imageSlot->SetOffsets(imageOffsets);
-                                    }
-                                    if (imageBrightnessOffsets.Bottom != height) {
-                                        imageBrightnessOffsets.Bottom = height;
-                                        imageBrightnessSlot->SetOffsets(imageBrightnessOffsets);
-                                    }
+
+                                    topSlot->SetOffsets(SDK::FMargin(0.00f, 0.00f, 1920.00f, 130.00f));
+                                    topSlot->SetAnchors(SDK::FAnchors((SDK::FVector2D)(0.00f, 0.00f), (SDK::FVector2D)(1.00f, 0.00f)));
+                                    bottomSlot->SetOffsets(SDK::FMargin(0.00f, height, 1920.00f, -130.00f));
+                                    bottomSlot->SetAnchors(SDK::FAnchors((SDK::FVector2D)(1.00f, 1.00f), (SDK::FVector2D)(1.00f, 1.00f)));  
                                 }
+
                                 // Don't centre this
                                 return;
                             }
