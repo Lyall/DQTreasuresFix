@@ -29,7 +29,7 @@ e.g. ("**steamapps\common\DRAGON QUEST TREASURES**" for Steam).
 
 ## Screenshots
 
-|  |
+| ![ezgif-7-dfea8f8f53](https://github.com/user-attachments/assets/901c07ce-bcf0-406c-9a4e-3ce25d02441d) |
 |:--------------------------:|
 | Gameplay |
 
