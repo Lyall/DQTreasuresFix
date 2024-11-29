@@ -5,6 +5,7 @@
 #include "SDK/UMG_classes.hpp"
 #include "SDK/W_MainMenu_Root_classes.hpp"
 #include "SDK/W_MainMenu_classes.hpp"
+#include "SDK/W_Brightness_classes.hpp"
 
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/basic_file_sink.h>
@@ -43,6 +44,7 @@ float fHUDHeight;
 float fHUDHeightOffset;
 
 // Ini variables
+bool bFixRes = true;
 bool bFixAspect = true;
 bool bFixHUD = true;
 bool bSkipLogos = true;
@@ -124,6 +126,7 @@ void Configuration()
     spdlog::info("----------");
 
     // Load settings from ini
+    inipp::get_value(ini.sections["Fix Resolution"], "Enabled", bFixRes);
     inipp::get_value(ini.sections["Fix Aspect Ratio"], "Enabled", bFixAspect);
     inipp::get_value(ini.sections["Fix HUD"], "Enabled", bFixHUD);
     inipp::get_value(ini.sections["Skip Logos"], "Enabled", bSkipLogos);
@@ -135,6 +138,7 @@ void Configuration()
             sCVars.emplace_back(pair.first, pair.second);
 
     // Log ini parse
+    spdlog_confparse(bFixRes);
     spdlog_confparse(bFixAspect);
     spdlog_confparse(bFixHUD);
     spdlog_confparse(bSkipLogos);
@@ -215,6 +219,39 @@ void CurrentResolution()
     else {
         spdlog::error("Current Resolution: Pattern scan failed.");
     }
+
+    if (bFixRes) {
+        // Stop game from switching to windowed mode when you alt+tab in borderless >:(
+        std::uint8_t* BorderlessFocusLossScanResult = Memory::PatternScan(exeModule, "44 0F ?? ?? 74 ?? 84 ?? 75 ?? B0 01 EB ?? 32 ??");
+        if (BorderlessFocusLossScanResult) {
+            spdlog::info("Borderless Focus Loss: Address is {:s}+{:x}", sExeName.c_str(), BorderlessFocusLossScanResult - (std::uint8_t*)exeModule);
+            static SafetyHookMid BorderlessFocusLossMidHook{};
+            BorderlessFocusLossMidHook = safetyhook::create_mid(BorderlessFocusLossScanResult,
+                [](SafetyHookContext& ctx) {
+                    ctx.rdx |= 0x1;
+                });
+        }
+        else {
+            spdlog::error("Borderless Focus Loss: Pattern scan failed.");
+        }
+
+        // Borderless resolution
+        std::uint8_t* BorderlessResolutionScanResult = Memory::PatternScan(exeModule, "48 89 ?? ?? ?? E8 ?? ?? ?? ?? 48 8B ?? 85 C0 75 ??");
+        if (BorderlessResolutionScanResult) {
+            spdlog::info("Borderless Resolution: Address is {:s}+{:x}", sExeName.c_str(), BorderlessResolutionScanResult - (std::uint8_t*)exeModule);
+            static SafetyHookMid BorderlessResolutionMidHook{};
+            BorderlessResolutionMidHook = safetyhook::create_mid(BorderlessResolutionScanResult,
+                [](SafetyHookContext& ctx) {
+                    // Check if borderless
+                    if (ctx.rsi == 1)
+                        ctx.rbx = (static_cast<uintptr_t>(DesktopDimensions.second) << 32) | DesktopDimensions.first;
+                });
+        }
+        else {
+            spdlog::error("Borderless Resolution: Pattern scan failed.");
+        }
+    }
+
 }
 
 void SkipLogos()
@@ -377,6 +414,42 @@ void HUD()
                                         bgSlot->SetOffsets(bgOffsets);
                                     }
                                 }
+                            }
+
+                            // Span cutscene letterboxing
+                            if (obj->GetName().contains("W_Brightness_C")) {
+                                auto letterbox = (SDK::UW_Brightness_C*)obj;
+
+                                auto imageSlot = (SDK::UCanvasPanelSlot*)letterbox->Image->Slot;
+                                auto imageOffsets = imageSlot->GetOffsets();
+
+                                auto imageBrightnessSlot = (SDK::UCanvasPanelSlot*)letterbox->Image_brightness->Slot;
+                                auto imageBrightnessOffsets = imageBrightnessSlot->GetOffsets();
+
+                                if (fAspectRatio > fNativeAspect) {
+                                    float width = 1080.00f * fAspectRatio;
+                                    if (imageOffsets.Right != width) {
+                                        imageOffsets.Right = width;
+                                        imageSlot->SetOffsets(imageOffsets);
+                                    }
+                                    if (imageBrightnessOffsets.Right != width) {
+                                        imageBrightnessOffsets.Right = width;
+                                        imageBrightnessSlot->SetOffsets(imageBrightnessOffsets);
+                                    }
+                                }
+                                else if (fAspectRatio < fNativeAspect) {
+                                    float height = 1920.00f / fAspectRatio;
+                                    if (imageOffsets.Bottom != height) {
+                                        imageOffsets.Bottom = height;
+                                        imageSlot->SetOffsets(imageOffsets);
+                                    }
+                                    if (imageBrightnessOffsets.Bottom != height) {
+                                        imageBrightnessOffsets.Bottom = height;
+                                        imageBrightnessSlot->SetOffsets(imageBrightnessOffsets);
+                                    }
+                                }
+                                // Don't centre this
+                                return;
                             }
 
                             // Centre rest of HUD
