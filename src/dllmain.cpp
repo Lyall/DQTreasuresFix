@@ -51,6 +51,7 @@ bool bFixHUD = true;
 bool bSkipLogos = true;
 bool bEnableConsole = false;
 bool bApplyCVars = false;
+bool bUncapCutsceneFPS = true;
 std::vector<std::pair<std::string, std::string>> sCVars;
 
 // Variables
@@ -137,6 +138,7 @@ void Configuration()
     if (it != ini.sections.end())
         for (const auto& pair : it->second)
             sCVars.emplace_back(pair.first, pair.second);
+    inipp::get_value(ini.sections["Uncap Cutscene FPS"], "Enabled", bUncapCutsceneFPS);
 
     // Log ini parse
     spdlog_confparse(bFixRes);
@@ -147,6 +149,7 @@ void Configuration()
     spdlog_confparse(bApplyCVars);
     for (const auto& cvar : sCVars)
         spdlog::info("Config Parse: sCVars: {} = {}", cvar.first, cvar.second);
+    spdlog_confparse(bUncapCutsceneFPS);
 
     spdlog::info("----------");
 }
@@ -472,8 +475,22 @@ void HUD()
     }
 }
 
-void ApplyCVars()
+void Miscellaneous()
 {
+    if (bUncapCutsceneFPS) {
+        //
+        std::uint8_t* SmoothFrameRateScanResult = Memory::PatternScan(exeModule, "A8 ?? 74 ?? F3 0F ?? ?? ?? ?? ?? ?? 41 0F ?? ?? 0F ?? ?? 76 ??");
+        if (SmoothFrameRateScanResult) {
+            spdlog::info("Cutscene FPS: Address is {:s}+{:x}", sExeName.c_str(), SmoothFrameRateScanResult - (std::uint8_t*)exeModule);
+            Memory::PatchBytes(SmoothFrameRateScanResult + 0x2, "\xEB", 1);
+            spdlog::info("Cutscene FPS: Patched instruction.");
+
+        }
+        else {
+            spdlog::error("Cutscene FPS: Pattern scan failed.");
+        }
+    }
+
     if (bApplyCVars) {
         // ULevelSequence::PostLoad()
         std::uint8_t* LevelSequencePostLoadScanResult = Memory::PatternScan(exeModule, "48 8B ?? 55 57 48 8B ?? 48 83 ?? ?? F6 ?? ?? 01 48 8B ?? 0F 84 ?? ?? ?? ??");
@@ -578,7 +595,7 @@ DWORD __stdcall Main(void*)
     CurrentResolution();
     AspectRatioFOV();
     HUD();
-    ApplyCVars();
+    Miscellaneous();
     EnableConsole();
     return true;
 }
