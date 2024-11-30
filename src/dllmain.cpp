@@ -52,6 +52,8 @@ bool bSkipLogos = true;
 bool bEnableConsole = false;
 bool bApplyCVars = false;
 bool bUncapCutsceneFPS = true;
+bool bDisableLetterboxing = false;
+float fGameplayFOVMulti = 1.00f;
 std::vector<std::pair<std::string, std::string>> sCVars;
 
 // Variables
@@ -139,6 +141,9 @@ void Configuration()
         for (const auto& pair : it->second)
             sCVars.emplace_back(pair.first, pair.second);
     inipp::get_value(ini.sections["Uncap Cutscene FPS"], "Enabled", bUncapCutsceneFPS);
+    inipp::get_value(ini.sections["Gameplay FOV"], "Multiplier", fGameplayFOVMulti);
+    fGameplayFOVMulti = std::clamp(fGameplayFOVMulti, 0.10f, 2.00f);
+    inipp::get_value(ini.sections["Disable Letterboxing"], "Enabled", bDisableLetterboxing);
 
     // Log ini parse
     spdlog_confparse(bFixRes);
@@ -150,6 +155,8 @@ void Configuration()
     for (const auto& cvar : sCVars)
         spdlog::info("Config Parse: sCVars: {} = {}", cvar.first, cvar.second);
     spdlog_confparse(bUncapCutsceneFPS);
+    spdlog_confparse(fGameplayFOVMulti);
+    spdlog_confparse(bDisableLetterboxing);
 
     spdlog::info("----------");
 }
@@ -425,6 +432,7 @@ void HUD()
                                 SDK::UCanvasPanelSlot* topSlot = nullptr;
                                 SDK::UCanvasPanelSlot* bottomSlot = nullptr;
 
+                                // Get top and bottom slots
                                 if (obj->GetName().contains("W_Sub_01_C")) {
                                     topSlot = (SDK::UCanvasPanelSlot*)static_cast<SDK::UW_Sub_01_C*>(obj)->Mask_Top->Slot;
                                     bottomSlot = (SDK::UCanvasPanelSlot*)static_cast<SDK::UW_Sub_01_C*>(obj)->Mask_Bottom->Slot;
@@ -433,22 +441,26 @@ void HUD()
                                     topSlot = (SDK::UCanvasPanelSlot*)static_cast<SDK::UW_Sub_02_C*>(obj)->Mask_Top->Slot;
                                     bottomSlot = (SDK::UCanvasPanelSlot*)static_cast<SDK::UW_Sub_02_C*>(obj)->Mask_Bottom->Slot;
                                 }
+                                
+                                // Disable letterboxing
+                                if (topSlot && bottomSlot && bDisableLetterboxing) {
+                                    topSlot->Parent->SetVisibility(SDK::ESlateVisibility::Hidden);
+                                    bottomSlot->Parent->SetVisibility(SDK::ESlateVisibility::Hidden);
+                                    return;
+                                }
 
+                                // Span letterboxing to fill the screen
                                 if (topSlot && bottomSlot) {
                                     if (fAspectRatio > fNativeAspect) {
-                                        float width = 1080.00f * fAspectRatio;
-
-                                        topSlot->SetOffsets(SDK::FMargin(0.00f, 0.00f, width, 130.00f));
+                                        topSlot->SetOffsets(SDK::FMargin(0.00f, 0.00f, 1080.00f * fAspectRatio, 130.00f));
                                         topSlot->SetAnchors(SDK::FAnchors((SDK::FVector2D)(0.00f, 0.00f), (SDK::FVector2D)(1.00f, 0.00f)));
-                                        bottomSlot->SetOffsets(SDK::FMargin(0.00f, 1080.00f, width, -130.00f));
+                                        bottomSlot->SetOffsets(SDK::FMargin(0.00f, 1080.00f, 1080.00f * fAspectRatio, -130.00f));
                                         bottomSlot->SetAnchors(SDK::FAnchors((SDK::FVector2D)(0.00f, 0.00f), (SDK::FVector2D)(1.00f, 0.00f)));
                                     }
                                     else if (fAspectRatio < fNativeAspect) {
-                                        float height = 1920.00f / fAspectRatio;
-
                                         topSlot->SetOffsets(SDK::FMargin(0.00f, 0.00f, 1920.00f, 130.00f));
                                         topSlot->SetAnchors(SDK::FAnchors((SDK::FVector2D)(0.00f, 0.00f), (SDK::FVector2D)(1.00f, 0.00f)));
-                                        bottomSlot->SetOffsets(SDK::FMargin(0.00f, height, 1920.00f, -130.00f));
+                                        bottomSlot->SetOffsets(SDK::FMargin(0.00f, 1920.00f / fAspectRatio, 1920.00f, -130.00f));
                                         bottomSlot->SetAnchors(SDK::FAnchors((SDK::FVector2D)(0.00f, 0.00f), (SDK::FVector2D)(1.00f, 0.00f)));
                                     }
                                 }
