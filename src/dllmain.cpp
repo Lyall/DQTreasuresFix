@@ -21,7 +21,7 @@ HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "DQTreasuresFix";
-std::string sFixVersion = "0.0.2";
+std::string sFixVersion = "0.0.3";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -65,6 +65,7 @@ int iOldResY;
 SDK::UEngine* Engine = nullptr;
 SDK::UInputSettings* InputSettings = nullptr;
 std::set<std::string> loggedCVars;
+std::uint8_t* FullscreenMode;
 
 void Logging()
 {
@@ -233,14 +234,27 @@ void CurrentResolution()
     }
 
     if (bFixRes) {
-        // Stop game from switching to windowed mode when you alt+tab in borderless >:(
-        std::uint8_t* BorderlessFocusLossScanResult = Memory::PatternScan(exeModule, "44 0F ?? ?? 74 ?? 84 ?? 75 ?? B0 01 EB ?? 32 ??");
+        // Get FullscreenMode
+        std::uint8_t* FullscreenModeScanResult = Memory::PatternScan(exeModule, "8B ?? ?? ?? ?? ?? 4C 8D ?? ?? ?? 48 0F ?? ?? ?? ?? 4C 8D ?? ?? ?? 48 8D ?? ?? ?? ?? ?? ??");
+        if (FullscreenModeScanResult) {
+            spdlog::info("FullscreenMode: Scan address is {:s}+{:x}", sExeName.c_str(), FullscreenModeScanResult - (std::uint8_t*)exeModule);
+            FullscreenMode = Memory::GetAbsolute(FullscreenModeScanResult + 0x2);
+            spdlog::info("FullscreenMode: Address is {:s}+{:x}", sExeName.c_str(), FullscreenMode - (std::uint8_t*)exeModule);
+        }
+        else {
+            spdlog::error("FullscreenMode: Pattern scan failed.");
+        }
+
+        // Stop game from switching to windowed mode when you alt+tab in borderless or fullscreen
+        std::uint8_t* BorderlessFocusLossScanResult = Memory::PatternScan(exeModule, "88 91 ?? ?? ?? ?? C7 81 ?? ?? ?? ?? ?? ?? ?? ?? 84 ?? 75 ??");
         if (BorderlessFocusLossScanResult) {
             spdlog::info("Borderless Focus Loss: Address is {:s}+{:x}", sExeName.c_str(), BorderlessFocusLossScanResult - (std::uint8_t*)exeModule);
             static SafetyHookMid BorderlessFocusLossMidHook{};
             BorderlessFocusLossMidHook = safetyhook::create_mid(BorderlessFocusLossScanResult,
                 [](SafetyHookContext& ctx) {
-                    ctx.rdx |= 0x1;
+                    // Check if borderless
+                    if (FullscreenMode && *reinterpret_cast<int*>(FullscreenMode) == 1)
+                        ctx.rdx |= 0x1;
                 });
         }
         else {
@@ -255,15 +269,30 @@ void CurrentResolution()
             BorderlessResolutionMidHook = safetyhook::create_mid(BorderlessResolutionScanResult,
                 [](SafetyHookContext& ctx) {
                     // Check if borderless
-                    if (ctx.rsi == 1)
+                    if (FullscreenMode && *reinterpret_cast<int*>(FullscreenMode) == 1)
                         ctx.rbx = (static_cast<uintptr_t>(DesktopDimensions.second) << 32) | DesktopDimensions.first;
                 });
         }
         else {
             spdlog::error("Borderless Resolution: Pattern scan failed.");
         }
-    }
 
+        // Startup resolution
+        std::uint8_t* StartupResolutionScanResult = Memory::PatternScan(exeModule, "E8 ?? ?? ?? ?? 33 ?? 48 8B ?? E8 ?? ?? ?? ?? 48 8B ?? 48 8B ?? 48 83 ?? ?? 5B");
+        if (StartupResolutionScanResult) {
+            spdlog::info("Startup Resolution: Address is {:s}+{:x}", sExeName.c_str(), StartupResolutionScanResult - (std::uint8_t*)exeModule);
+            static SafetyHookMid StartupResolutionMidHook{};
+            StartupResolutionMidHook = safetyhook::create_mid(StartupResolutionScanResult,
+                [](SafetyHookContext& ctx) {
+                    // Apply desktop resolution when the game starts in borderless
+                    if (FullscreenMode && *reinterpret_cast<int*>(FullscreenMode) == 1)
+                        ctx.rdx = (static_cast<uintptr_t>(DesktopDimensions.second) << 32) | DesktopDimensions.first;
+                });
+        }
+        else {
+            spdlog::error("Startup Resolution: Pattern scan failed.");
+        }
+    }
 }
 
 void SkipLogos()
@@ -358,9 +387,9 @@ void HUD()
         // HUD
         std::uint8_t* HUDSizeScanResult = Memory::PatternScan(exeModule, "45 33 ?? 48 8D ?? ?? ?? ?? ?? 44 89 ?? ?? 48 89 ?? ?? 33 ??");
         if (HUDSizeScanResult) {
-            spdlog::info("HUD: Size: Address is {:s}+{:x}", sExeName.c_str(), HUDSizeScanResult - (std::uint8_t*)exeModule);
+            spdlog::info("HUD Size: Address is {:s}+{:x}", sExeName.c_str(), HUDSizeScanResult - (std::uint8_t*)exeModule);
             std::uint8_t* HUDSizeFunction = Memory::GetAbsolute(HUDSizeScanResult + 0x6);
-            spdlog::info("HUD: Size: Function address is {:s}+{:x}", sExeName.c_str(), HUDSizeFunction - (std::uint8_t*)exeModule);
+            spdlog::info("HUD Size: Function address is {:s}+{:x}", sExeName.c_str(), HUDSizeFunction - (std::uint8_t*)exeModule);
             if (HUDSizeFunction) {
                 static SafetyHookMid HUDSizeMidHook{};
                 HUDSizeMidHook = safetyhook::create_mid(HUDSizeFunction + 0x7,
@@ -489,7 +518,7 @@ void HUD()
             }
         }
         else {
-            spdlog::error("HUD: Size: Pattern scan failed.");
+            spdlog::error("HUD Size: Pattern scan failed.");
         }
     }
 }
@@ -497,7 +526,7 @@ void HUD()
 void Miscellaneous()
 {
     if (bUncapCutsceneFPS) {
-        //
+        // bSmoothFrameRate
         std::uint8_t* SmoothFrameRateScanResult = Memory::PatternScan(exeModule, "A8 ?? 74 ?? F3 0F ?? ?? ?? ?? ?? ?? 41 0F ?? ?? 0F ?? ?? 76 ??");
         if (SmoothFrameRateScanResult) {
             spdlog::info("Cutscene FPS: Address is {:s}+{:x}", sExeName.c_str(), SmoothFrameRateScanResult - (std::uint8_t*)exeModule);
