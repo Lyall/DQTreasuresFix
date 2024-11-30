@@ -3,6 +3,8 @@
 
 #include "SDK/Engine_classes.hpp"
 #include "SDK/UMG_classes.hpp"
+
+#include "SDK/W_Fade_classes.hpp"
 #include "SDK/W_MainMenu_Root_classes.hpp"
 #include "SDK/W_MainMenu_classes.hpp"
 #include "SDK/W_Sub_01_classes.hpp"
@@ -320,29 +322,35 @@ void UpdateOffsets()
 
 void AspectRatioFOV()
 {
-    if (bFixAspect) {
-        // Aspect Ratio / FOV
-        std::uint8_t* AspectRatioFOVScanResult = Memory::PatternScan(exeModule, "F3 0F ?? ?? ?? 8B ?? ?? ?? ?? ?? 89 ?? ?? 0F ?? ?? ?? ?? ?? ?? 33 ?? ??");
-        if (AspectRatioFOVScanResult) {
-            spdlog::info("Aspect Ratio/FOV: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioFOVScanResult - (std::uint8_t*)exeModule);
-            static SafetyHookMid FOVMidHook{};
-            FOVMidHook = safetyhook::create_mid(AspectRatioFOVScanResult,
-                [](SafetyHookContext& ctx) {
-                    // Fix vert- FOV
-                    if (fAspectRatio > fNativeAspect)
-                        ctx.xmm0.f32[0] = atanf(tanf(ctx.xmm0.f32[0] * (fPi / 360)) / fNativeAspect * fAspectRatio) * (360 / fPi);
-                });
+    // Aspect Ratio / FOV
+    std::uint8_t* AspectRatioFOVScanResult = Memory::PatternScan(exeModule, "F3 0F ?? ?? ?? 8B ?? ?? ?? ?? ?? 89 ?? ?? 0F ?? ?? ?? ?? ?? ?? 33 ?? ??");
+    if (AspectRatioFOVScanResult) {
+        spdlog::info("Aspect Ratio/FOV: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioFOVScanResult - (std::uint8_t*)exeModule);
+        static SafetyHookMid FOVMidHook{};
+        FOVMidHook = safetyhook::create_mid(AspectRatioFOVScanResult,
+            [](SafetyHookContext& ctx) {
+                // Fix vert- FOV
+                if (fAspectRatio > fNativeAspect)
+                    ctx.xmm0.f32[0] = atanf(tanf(ctx.xmm0.f32[0] * (fPi / 360)) / fNativeAspect * fAspectRatio) * (360 / fPi);
 
+                if (fGameplayFOVMulti != 1.00f && ctx.rbx) {
+                    SDK::UObject* obj = (SDK::UObject*)ctx.rbx;
+                    if (obj->IsA(SDK::UCameraComponent::StaticClass()))
+                        ctx.xmm0.f32[0] *= fGameplayFOVMulti;
+                }
+            });
+
+        if (bFixAspect) {
             static SafetyHookMid AspectRatioMidHook{};
             AspectRatioMidHook = safetyhook::create_mid(AspectRatioFOVScanResult + 0xB,
                 [](SafetyHookContext& ctx) {
                     ctx.rax = *(uint32_t*)(&fAspectRatio);
                 });
         }
-        else {
-            spdlog::error("Aspect Ratio/FOV: Pattern scan failed.");
-        }
-    }   
+    }
+    else {
+        spdlog::error("Aspect Ratio/FOV: Pattern scan failed.");
+    }  
 }
 
 void HUD()
@@ -361,11 +369,11 @@ void HUD()
                         if (ctx.xmm0.f32[0] == 0.00f && ctx.xmm0.f32[1] == 0.00f && ctx.xmm0.f32[2] == 1.00f && ctx.xmm0.f32[3] == 1.00f) {   
                             SDK::UObject* obj = (SDK::UObject*)ctx.rcx;
                             // Don't center these HUD objects
-                            if (obj->GetName().contains("W_Fade_C"))
+                            if (obj->IsA(SDK::UW_Fade_C::StaticClass()))
                                 return;
 
                             // Fix main menu capture
-                            if (obj->GetName().contains("W_MainMenu_Root_C")) {
+                            if (obj->IsA(SDK::UW_MainMenu_Root_C::StaticClass())) {
                                 auto mainMenu_root = (SDK::UW_MainMenu_Root_C*)obj;
 
                                 auto captureSlot = (SDK::UCanvasPanelSlot*)mainMenu_root->Capture->Slot;
@@ -401,7 +409,7 @@ void HUD()
                             }
 
                             // Span main menu background
-                            if (obj->GetName().contains("W_MainMenu_C")) {
+                            if (obj->IsA(SDK::UW_MainMenu_C::StaticClass())) {
                                 auto mainMenu = (SDK::UW_MainMenu_C*)obj;
 
                                 auto bgSlot = (SDK::UCanvasPanelSlot*)mainMenu->BK->Slot;
@@ -428,16 +436,16 @@ void HUD()
                             }
 
                             // Span cutscene letterboxing
-                            if (obj->GetName().contains("W_Sub_01_C") || obj->GetName().contains("W_Sub_02_C")) {
+                            if (obj->IsA(SDK::UW_Sub_01_C::StaticClass()) || obj->IsA(SDK::UW_Sub_02_C::StaticClass())) {
                                 SDK::UCanvasPanelSlot* topSlot = nullptr;
                                 SDK::UCanvasPanelSlot* bottomSlot = nullptr;
 
                                 // Get top and bottom slots
-                                if (obj->GetName().contains("W_Sub_01_C")) {
+                                if (obj->IsA(SDK::UW_Sub_01_C::StaticClass())) {
                                     topSlot = (SDK::UCanvasPanelSlot*)static_cast<SDK::UW_Sub_01_C*>(obj)->Mask_Top->Slot;
                                     bottomSlot = (SDK::UCanvasPanelSlot*)static_cast<SDK::UW_Sub_01_C*>(obj)->Mask_Bottom->Slot;
                                 }
-                                else if (obj->GetName().contains("W_Sub_02_C")) {
+                                else if (obj->IsA(SDK::UW_Sub_02_C::StaticClass())) {
                                     topSlot = (SDK::UCanvasPanelSlot*)static_cast<SDK::UW_Sub_02_C*>(obj)->Mask_Top->Slot;
                                     bottomSlot = (SDK::UCanvasPanelSlot*)static_cast<SDK::UW_Sub_02_C*>(obj)->Mask_Bottom->Slot;
                                 }
