@@ -10,6 +10,8 @@ This is an ASI plugin for Dragon Quest Treasures that adds ultrawide/narrower su
 - Enable developer console.
 - Apply a list of console commands on level load.
 - Remove cutscene framerate cap.
+- Adjust gameplay FOV.
+- Remove letterboxing in cutscenes.
 
 ### Ultrawide/narrower
 - Support for any aspect ratio.
