@@ -4,7 +4,6 @@
 #include "SDK/Engine_classes.hpp"
 #include "SDK/UMG_classes.hpp"
 
-#include "SDK/W_Fade_classes.hpp"
 #include "SDK/W_MainMenu_Root_classes.hpp"
 #include "SDK/W_MainMenu_classes.hpp"
 #include "SDK/W_Sub_01_classes.hpp"
@@ -335,7 +334,7 @@ void AspectRatioFOV()
 
                 if (fGameplayFOVMulti != 1.00f && ctx.rbx) {
                     SDK::UObject* obj = (SDK::UObject*)ctx.rbx;
-                    if (obj->IsA(SDK::UCameraComponent::StaticClass()))
+                    if (!obj->GetFullName().contains("CineCameraComponent"))
                         ctx.xmm0.f32[0] *= fGameplayFOVMulti;
                 }
             });
@@ -369,11 +368,11 @@ void HUD()
                         if (ctx.xmm0.f32[0] == 0.00f && ctx.xmm0.f32[1] == 0.00f && ctx.xmm0.f32[2] == 1.00f && ctx.xmm0.f32[3] == 1.00f) {   
                             SDK::UObject* obj = (SDK::UObject*)ctx.rcx;
                             // Don't center these HUD objects
-                            if (obj->IsA(SDK::UW_Fade_C::StaticClass()))
+                            if (obj->GetName().contains("W_Fade_C"))
                                 return;
 
                             // Fix main menu capture
-                            if (obj->IsA(SDK::UW_MainMenu_Root_C::StaticClass())) {
+                            if (obj->GetName().contains("W_MainMenu_Root_C")) {
                                 auto mainMenu_root = (SDK::UW_MainMenu_Root_C*)obj;
 
                                 auto captureSlot = (SDK::UCanvasPanelSlot*)mainMenu_root->Capture->Slot;
@@ -409,7 +408,7 @@ void HUD()
                             }
 
                             // Span main menu background
-                            if (obj->IsA(SDK::UW_MainMenu_C::StaticClass())) {
+                            if (obj->GetName().contains("W_MainMenu_C")) {
                                 auto mainMenu = (SDK::UW_MainMenu_C*)obj;
 
                                 auto bgSlot = (SDK::UCanvasPanelSlot*)mainMenu->BK->Slot;
@@ -436,16 +435,16 @@ void HUD()
                             }
 
                             // Span cutscene letterboxing
-                            if (obj->IsA(SDK::UW_Sub_01_C::StaticClass()) || obj->IsA(SDK::UW_Sub_02_C::StaticClass())) {
+                            if (obj->GetName().contains("W_Sub_01_C") || obj->GetName().contains("W_Sub_02_C")) {
                                 SDK::UCanvasPanelSlot* topSlot = nullptr;
                                 SDK::UCanvasPanelSlot* bottomSlot = nullptr;
 
                                 // Get top and bottom slots
-                                if (obj->IsA(SDK::UW_Sub_01_C::StaticClass())) {
+                                if (obj->GetName().contains("W_Sub_01_C")) {
                                     topSlot = (SDK::UCanvasPanelSlot*)static_cast<SDK::UW_Sub_01_C*>(obj)->Mask_Top->Slot;
                                     bottomSlot = (SDK::UCanvasPanelSlot*)static_cast<SDK::UW_Sub_01_C*>(obj)->Mask_Bottom->Slot;
                                 }
-                                else if (obj->IsA(SDK::UW_Sub_02_C::StaticClass())) {
+                                else if (obj->GetName().contains("W_Sub_02_C")) {
                                     topSlot = (SDK::UCanvasPanelSlot*)static_cast<SDK::UW_Sub_02_C*>(obj)->Mask_Top->Slot;
                                     bottomSlot = (SDK::UCanvasPanelSlot*)static_cast<SDK::UW_Sub_02_C*>(obj)->Mask_Bottom->Slot;
                                 }
