@@ -21,7 +21,7 @@ HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "DQTreasuresFix";
-std::string sFixVersion = "0.0.3";
+std::string sFixVersion = "0.0.4";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -54,6 +54,7 @@ bool bEnableConsole = false;
 bool bApplyCVars = false;
 bool bUncapCutsceneFPS = true;
 bool bDisableLetterboxing = false;
+bool bDisableDithering = false;
 float fGameplayFOVMulti = 1.00f;
 std::vector<std::pair<std::string, std::string>> sCVars;
 
@@ -146,6 +147,7 @@ void Configuration()
     inipp::get_value(ini.sections["Gameplay FOV"], "Multiplier", fGameplayFOVMulti);
     fGameplayFOVMulti = std::clamp(fGameplayFOVMulti, 0.10f, 2.00f);
     inipp::get_value(ini.sections["Disable Letterboxing"], "Enabled", bDisableLetterboxing);
+    inipp::get_value(ini.sections["Disable Dithering"], "Enabled", bDisableDithering);
 
     // Log ini parse
     spdlog_confparse(bFixRes);
@@ -159,6 +161,7 @@ void Configuration()
     spdlog_confparse(bUncapCutsceneFPS);
     spdlog_confparse(fGameplayFOVMulti);
     spdlog_confparse(bDisableLetterboxing);
+    spdlog_confparse(bDisableDithering);
 
     spdlog::info("----------");
 }
@@ -525,6 +528,19 @@ void HUD()
 
 void Miscellaneous()
 {
+    if (bDisableDithering) {
+        // Disable character dithering
+        std::uint8_t* CharacterDitheringScanResult = Memory::PatternScan(exeModule, "80 ?? ?? ?? ?? ?? 00 0F 84 ?? ?? ?? ?? 48 8B ?? 0F 29 ?? ?? ?? E8 ?? ?? ?? ??");
+        if (CharacterDitheringScanResult) {
+            spdlog::info("Character Dithering: Address is {:s}+{:x}", sExeName.c_str(), CharacterDitheringScanResult - (std::uint8_t*)exeModule);
+            Memory::PatchBytes(CharacterDitheringScanResult, "\xF6\x83", 2); // cmp -> test,00 always sets ZF
+            spdlog::info("Character Dithering: Patched instruction.");
+        }
+        else {
+            spdlog::error("Character Dithering: Pattern scan failed.");
+        }
+    }
+
     if (bUncapCutsceneFPS) {
         // bSmoothFrameRate
         std::uint8_t* SmoothFrameRateScanResult = Memory::PatternScan(exeModule, "A8 ?? 74 ?? F3 0F ?? ?? ?? ?? ?? ?? 41 0F ?? ?? 0F ?? ?? 76 ??");
