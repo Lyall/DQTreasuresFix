@@ -12,6 +12,7 @@ This is an ASI plugin for Dragon Quest Treasures that adds ultrawide/narrower su
 - Remove cutscene framerate cap.
 - Adjust gameplay FOV.
 - Remove letterboxing in cutscenes.
+- Disable character fader/dither when the camera gets close.
 
 ### Ultrawide/narrower
 - Support for any aspect ratio.
